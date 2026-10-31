@@ -1,0 +1,50 @@
+// ===== النوتة الروحية: الصق الجزء ده في firestore.rules بتاع STMina =====
+// مكانه: جوه match /databases/{database}/documents { ... } وقبل القاعدة الأخيرة
+//   match /{document=**} { allow read, write: if false; }
+// (لو اتحط بعدها مش هيشتغل). وبيستخدم helpers موجودة عندك: isSignedIn() و isApproved().
+// ومطلوب تفعّل Anonymous في Firebase Console > Authentication > Sign-in method.
+
+// جهاز الولد اتربط بكود صح؟
+function isKid() {
+  return isSignedIn()
+    && exists(/databases/$(database)/documents/kid_devices/$(request.auth.uid));
+}
+function myKidId() {
+  return get(/databases/$(database)/documents/kid_devices/$(request.auth.uid)).data.childId;
+}
+
+// الأكواد: أي خادم معتمد يعملها من STMina. الولد يقرا كود واحد لو عارفه (get)، ومفيش list.
+// شكل المستند: kid_codes/{الكود} = { childId: "<students doc id>", name: "الاسم الأول" }
+match /kid_codes/{code} {
+  allow get: if isSignedIn();
+  allow list: if false;
+  allow write: if isApproved();
+}
+
+// ربط جهاز الولد: لازم الكود يكون موجود وبيطابق نفس الـ childId.
+// create + update عشان الولد يقدر يغيّر الكود على نفس الجهاز بعد "مش أنا".
+match /kid_devices/{uid} {
+  allow create, update: if isSignedIn() && request.auth.uid == uid
+    && request.resource.data.keys().hasOnly(['code', 'childId'])
+    && exists(/databases/$(database)/documents/kid_codes/$(request.resource.data.code))
+    && get(/databases/$(database)/documents/kid_codes/$(request.resource.data.code)).data.childId
+       == request.resource.data.childId;
+  allow read: if isSignedIn() && request.auth.uid == uid;
+  allow delete: if isApproved();
+}
+
+match /spiritualNotes/{childId}/days/{day} {
+  allow read: if (isKid() && myKidId() == childId) || isApproved();
+  allow create, update: if isKid() && myKidId() == childId
+    && request.resource.data.keys().hasOnly(
+         ['day', 'prayerMorning', 'prayerNight', 'gospel', 'mass', 'fast', 'savedAt'])
+    && request.resource.data.savedAt == request.time
+    && (!('gospel' in request.resource.data) || request.resource.data.gospel.size() <= 300);
+}
+
+match /spiritualNotes/{childId}/months/{month} {
+  allow read: if (isKid() && myKidId() == childId) || isApproved();
+  allow create, update: if isKid() && myKidId() == childId
+    && request.resource.data.keys().hasOnly(['confession', 'savedAt'])
+    && request.resource.data.savedAt == request.time;
+}
