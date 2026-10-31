@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#2F5D8C">
+<title>النوتة الروحية</title>
+<link rel="manifest" href="manifest.json">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@500;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#FBF6EC;--ink:#2B2A33;--mute:#5A5663;--blue:#2F5D8C;--green:#1F7A4A;--line:#EADFC8;--btn:#C9BFA8}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:'Cairo',sans-serif}
+main{max-width:440px;margin:0 auto;padding:28px 20px 32px;display:flex;flex-direction:column;gap:14px;min-height:100vh}
+section{display:flex;flex-direction:column;gap:14px}
+h1{margin:0;font-size:30px;font-weight:800;color:var(--blue);line-height:1.3}
+p{margin:0}
+.date{font-size:17px;font-weight:700;color:var(--mute)}
+.card{background:#fff;border:2px solid var(--line);border-radius:18px;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.row{flex-direction:row;align-items:center;justify-content:space-between}
+.card h2{margin:0;font-size:19px;font-weight:800;color:var(--blue)}
+.sub{font-size:14px;font-weight:500;color:var(--mute)}
+.pair{display:flex;gap:10px}
+button,input{font-family:inherit}
+.tog{flex:1;min-width:96px;min-height:56px;border:2px solid var(--btn);border-radius:14px;background:var(--bg);color:var(--ink);font-size:18px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer}
+.row .tog{flex:0 0 auto}
+.tog.on{background:var(--green);border-color:var(--green);color:#fff}
+input{min-height:50px;border:2px solid var(--btn);border-radius:12px;padding:0 12px;font-size:17px;font-weight:500;background:var(--bg);color:var(--ink);width:100%}
+label{font-size:15px;font-weight:500;color:var(--mute)}
+.main{min-height:60px;border:0;border-radius:16px;background:var(--blue);color:#fff;font-size:20px;font-weight:800;cursor:pointer}
+.link{background:none;border:0;color:var(--mute);font-size:15px;font-weight:500;text-decoration:underline;cursor:pointer;min-height:44px}
+.msg{min-height:24px;text-align:center;font-weight:700;color:var(--green)}
+.msg.bad{color:#B3261E}
+button:focus-visible,input:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+#code{text-align:center;font-size:26px;letter-spacing:4px;min-height:60px}
+</style>
+</head>
+<body>
+<main>
+<section id="login" hidden>
+  <h1>النوتة الروحية</h1>
+  <div class="card">
+    <label for="code">اكتب الكود اللي مع الخادم</label>
+    <input id="code" inputmode="numeric" autocomplete="off" maxlength="12" dir="ltr">
+  </div>
+  <button class="main" id="enter">ادخل</button>
+  <p class="msg bad" id="err" role="alert"></p>
+</section>
+
+<section id="notes" hidden>
+  <header>
+    <h1>النوتة الروحية</h1>
+    <p class="date" id="hello"></p>
+    <p class="date" id="date"></p>
+  </header>
+  <div class="card">
+    <h2>الصلاة</h2>
+    <div class="pair">
+      <button class="tog" data-k="prayerMorning" data-on="الصبح" data-off="الصبح">الصبح</button>
+      <button class="tog" data-k="prayerNight" data-on="بليل" data-off="بليل">بليل</button>
+    </div>
+  </div>
+  <div class="card">
+    <h2>الإنجيل</h2>
+    <label for="gospel">كتبت إيه النهاردة؟</label>
+    <input id="gospel" maxlength="300">
+  </div>
+  <div class="card row">
+    <h2>القداس</h2>
+    <button class="tog" data-k="mass" data-on="حضرت" data-off="لسه">لسه</button>
+  </div>
+  <div class="card row" id="fastCard">
+    <div><h2>الصوم</h2><p class="sub">بيظهر الأربع والجمعة بس</p></div>
+    <button class="tog" data-k="fast" data-on="صمت" data-off="لسه">لسه</button>
+  </div>
+  <div class="card row">
+    <div><h2>الاعتراف</h2><p class="sub">مرة في الشهر</p></div>
+    <button class="tog" data-k="confession" data-on="اعترفت" data-off="لسه">لسه</button>
+  </div>
+  <button class="main" id="save">حفظ</button>
+  <p class="msg" id="status" role="status"></p>
+  <button class="link" id="logout">مش أنا</button>
+</section>
+</main>
+
+<script type="module">
+import {initializeApp} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import {initializeAppCheck,ReCaptchaEnterpriseProvider} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app-check.js";
+import {getAuth,signInAnonymously,onAuthStateChanged} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import {getFirestore,doc,getDoc,setDoc,serverTimestamp} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+
+// نفس مشروع STMina (attends-39e5b). الصق الباقي من Firebase Console > Project settings > Your apps.
+// القيم دي مش سرية (نفس اللي STMina بيستخدمها في VITE_FIREBASE_*).
+const firebaseConfig={
+  apiKey:"PASTE_HERE",
+  authDomain:"attends-39e5b.firebaseapp.com",
+  projectId:"attends-39e5b",
+  messagingSenderId:"PASTE_HERE",
+  appId:"PASTE_HERE"
+};
+// نفس VITE_RECAPTCHA_SITE_KEY بتاع STMina. سيبه فاضي لو App Check مش مفعّل على المشروع.
+const RECAPTCHA_SITE_KEY="";
+
+const $=s=>document.querySelector(s);
+const CHECK='<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+const TZ='Africa/Cairo', now=new Date();
+const dayId=new Intl.DateTimeFormat('en-CA',{timeZone:TZ}).format(now);
+const monthId=dayId.slice(0,7);
+const wd=new Intl.DateTimeFormat('en-US',{timeZone:TZ,weekday:'short'}).format(now);
+const isFast=wd==='Wed'||wd==='Fri';
+
+// اسم مستقل للتطبيق: البرنامجين على نفس الدومين (teto550.github.io)، فكده جلسة دخول الخادم في STMina متتلخبطش مع جلسة الولد.
+const app=initializeApp(firebaseConfig,'spiritual-notes');
+if(RECAPTCHA_SITE_KEY){initializeAppCheck(app,{provider:new ReCaptchaEnterpriseProvider(RECAPTCHA_SITE_KEY),isTokenAutoRefreshEnabled:true})}
+const auth=getAuth(app), db=getFirestore(app);
+let me=null, data={}, month={}, uid=null;
+
+const show=v=>{$('#login').hidden=v!=='login';$('#notes').hidden=v!=='notes'};
+const say=(t,bad)=>{const s=$('#status');s.textContent=t;s.className='msg'+(bad?' bad':'')};
+const dref=()=>doc(db,'spiritualNotes',me.childId,'days',dayId);
+const mref=()=>doc(db,'spiritualNotes',me.childId,'months',monthId);
+
+function render(){
+  document.querySelectorAll('.tog').forEach(b=>{
+    const k=b.dataset.k, on=!!(k==='confession'?month[k]:data[k]);
+    b.classList.toggle('on',on);
+    b.setAttribute('aria-pressed',on);
+    b.innerHTML=(on?CHECK:'')+(on?b.dataset.on:b.dataset.off);
+  });
+  $('#gospel').value=data.gospel||'';
+}
+
+async function save(patch,isMonth){
+  try{
+    const ref=isMonth?mref():dref();
+    const body=isMonth?{...patch}:{...patch,day:dayId};
+    await setDoc(ref,{...body,savedAt:serverTimestamp()},{merge:true});
+    say('اتحفظ ✓');return true;
+  }catch(e){say('مش قادر يحفظ، تأكد من النت وجرّب تاني',true);return false}
+}
+
+async function openNotes(){
+  show('notes');
+  $('#hello').textContent='أهلاً يا '+me.name;
+  $('#date').textContent=now.toLocaleDateString('ar-EG',{timeZone:TZ,weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  $('#fastCard').hidden=!isFast;
+  try{
+    const [d,m]=await Promise.all([getDoc(dref()),getDoc(mref())]);
+    data=d.exists()?d.data():{};month=m.exists()?m.data():{};
+  }catch(e){
+    if(e.code==='permission-denied'){localStorage.removeItem('spiritualNotes.me');show('login');return}
+    say('مش قادر يفتح البيانات، تأكد من النت',true);
+  }
+  render();
+}
+
+document.addEventListener('click',async e=>{
+  const b=e.target.closest('.tog');if(!b||!me)return;
+  const k=b.dataset.k, isM=k==='confession', src=isM?month:data, old=!!src[k];
+  src[k]=!old;render();
+  if(!await save({[k]:!old},isM)){src[k]=old;render()}
+});
+
+$('#gospel').addEventListener('change',async e=>{
+  const v=e.target.value.trim();data.gospel=v;await save({gospel:v});
+});
+$('#save').addEventListener('click',async()=>{
+  const v=$('#gospel').value.trim();data.gospel=v;await save({gospel:v});
+});
+$('#logout').addEventListener('click',()=>{localStorage.removeItem('spiritualNotes.me');me=null;data={};month={};$('#code').value='';show('login')});
+
+$('#enter').addEventListener('click',async()=>{
+  const err=$('#err'), code=$('#code').value.trim();err.textContent='';
+  if(!/^\d{4,12}$/.test(code)){err.textContent='اكتب الكود أرقام بس.';return}
+  try{
+    const c=await getDoc(doc(db,'kid_codes',code));
+    if(!c.exists()){err.textContent='الكود ده مش صح. اسأل الخادم.';return}
+    const {childId,name}=c.data();
+    await setDoc(doc(db,'kid_devices',uid),{code,childId});
+    me={childId,name};localStorage.setItem('spiritualNotes.me',JSON.stringify(me));
+    openNotes();
+  }catch(e){err.textContent='حصلت مشكلة. تأكد من النت وجرّب تاني.'}
+});
+
+try{
+  uid=await new Promise((res,rej)=>{
+    onAuthStateChanged(auth,u=>{if(u)res(u.uid)});
+    signInAnonymously(auth).catch(rej);
+  });
+  try{me=JSON.parse(localStorage.getItem('spiritualNotes.me'))}catch(e){me=null}
+  if(me&&me.childId)openNotes();else show('login');
+}catch(e){show('login');$('#err').textContent='مش قادر يتصل. تأكد من النت.'}
+</script>
+</body>
+</html>
