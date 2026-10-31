@@ -1,0 +1,18 @@
+{
+  "name": "النوتة الروحية",
+  "short_name": "النوتة الروحية",
+  "start_url": ".",
+  "display": "standalone",
+  "dir": "rtl",
+  "lang": "ar",
+  "background_color": "#FBF6EC",
+  "theme_color": "#2F5D8C",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='96' fill='%232F5D8C'/%3E%3Cpath d='M224 96h64v128h128v64H288v128h-64V288H96v-64h128z' fill='%23fff'/%3E%3C/svg%3E",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
